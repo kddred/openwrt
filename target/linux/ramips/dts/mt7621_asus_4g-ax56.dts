@@ -26,10 +26,10 @@
 	leds {
 		compatible = "gpio-leds";
 
-		led_power: led-0 {
+		led_power: power {
 			color = <LED_COLOR_ID_WHITE>;
-                        function = LED_FUNCTION_POWER;
-			gpios = <&gpio 13 GPIO_ACTIVE_LOW>;
+			function = LED_FUNCTION_POWER;
+			gpios = <&gpio 14 GPIO_ACTIVE_HIGH>;
 		};
 	};
 
@@ -38,13 +38,13 @@
 
 		key-restart {
 			label = "reset";
-			gpios = <&gpio 16 GPIO_ACTIVE_LOW>;
+			gpios = <&gpio 8 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_RESTART>;
 		};
 
 		key-wps {
 			label = "wps";
-			gpios = <&gpio 15 GPIO_ACTIVE_LOW>;
+			gpios = <&gpio 4 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_WPS_BUTTON>;
 		};
 	};
@@ -53,6 +53,11 @@
 &nand {
 	status = "okay";
 
+	mediatek,nmbm;
+	mediatek,bmt-remap-range =
+		<0x000000 0x7e0000>,
+		<0x35e0000 0x7800000>;
+
 	partitions {
 		compatible = "fixed-partitions";
 		#address-cells = <1>;
@@ -60,12 +65,21 @@
 
 		partition@0 {
 			label = "u-boot";
-			reg = <0x0 0xe0000>;
+			reg = <0x0 0x80000>;
 			read-only;
 		};
 
-		partition@e0000 {
+		/*
+		 * u-boot gets split here while keeping u-boot read-only,
+		 * which allows safe usage of fw_setenv
+		 */
+		partition@80000 {
 			label = "u-boot-env";
+			reg = <0x80000 0x60000>;
+		};
+
+		partition@e0000 {
+			label = "nvram";
 			reg = <0xe0000 0x100000>;
 			read-only;
 		};
@@ -81,7 +95,7 @@
 
 			macaddr_factory_4: macaddr@4 {
 				reg = <0x4 0x6>;
-			};			
+			};
 		};
 
 		factory2: partition@2e0000 {
@@ -91,19 +105,35 @@
 		};
 
 		partition@3e0000 {
-			label = "kernel";
-			reg = <0x3e0000 0x400000>;
-		};
+			label = "firmware";
+			reg = <0x3e0000 0x3200000>;
 
-		partition@7e0000 {
-			label = "ubi";
-			reg = <0x7e0000 0x2e00000>;
+			compatible = "fixed-partitions";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			partition@0 {
+				label = "kernel";
+				reg = <0x0 0x400000>;
+			};
+
+			partition@400000 {
+				label = "ubi";
+				reg = <0x400000 0x2e00000>;
+			};
 		};
 
 		partition@35e0000 {
 			label = "firmware2";
 			reg = <0x35e0000 0x3200000>;
 		};
+
+		partition@67e0000 {
+			label = "jffs2";
+			reg = <0x67e0000 0x1020000>;
+		};
+
+		/* Last 8M are reserved for NMBM management (bad blocks) */
 	};
 };
 
@@ -170,4 +200,3 @@
 		function = "gpio";
 	};
 };
-
